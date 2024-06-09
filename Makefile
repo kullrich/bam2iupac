@@ -10,10 +10,10 @@ EXEC = bam2iupac
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
-        $(CXX) $(CXXFLAGS) $(OBJS) -o $(EXEC) -lhts
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $(EXEC) -lhts
 
 %.o: %.cpp
-        $(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-        rm -f $(OBJS) $(EXEC)
+	rm -f $(OBJS) $(EXEC)

@@ -1,3 +1,8 @@
 .*.swp
 *.o
 Makefile.bak
+.idea/.gitignore
+.idea/*.iml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/workspace.xml
