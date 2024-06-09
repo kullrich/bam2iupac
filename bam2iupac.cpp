@@ -22,12 +22,8 @@
 #include <stdexcept>
 #include <iostream>
 #include <sstream>
-#include <string>
 #include <vector>
-#include <cstdlib>
 #include <getopt.h>
-#include <regex>
-#include <tuple>
 #include "sam.h"
 
 #define VERSION "0.0.1"
@@ -35,7 +31,7 @@
 #define GITHUB_URL "https://github.com/kullrich/bam2iupac"
 
 #undef BAM_CIGAR_STR
-#define BAM_CIGAR_STR   "MIDNSHP=XB"
+#define BAM_CIGAR_STR "MIDNSHP=XB"
 #undef bam_cigar_opchr
 #define bam_cigar_opchr(c) (static_cast<char>(BAM_CIGAR_STR "??????" [bam_cigar_op(c)]))
 
@@ -77,7 +73,7 @@ char getIupac(const std::vector<int>& counts, double iRatio) {
         const double scoreThresholds[] = {0.0, 1.0, 4.0, 9.0, 16.0, 10.0, 20.0, 13.0, 17.0, 25.0, 5.0, 29.0, 26.0, 21.0, 14.0, 30.0};
         const int iupacValues[] = {14, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
-        for (size_t i = 0; i < sizeof(scoreThresholds) / sizeof(scoreThresholds[0]); i++) {
+        for (size_t i = static_cast<size_t>(0); i < sizeof(scoreThresholds) / sizeof(scoreThresholds[0]); i++) {
             if (bIUPACscore == scoreThresholds[i]) {
                 whichIUPAC = iupacValues[i];
                 break;
@@ -141,7 +137,7 @@ void printAllCounts(
             std::cout << "\t" << bamFiles[b] << "\n";
             std::cout << "CHR\tPOS\tA\tC\tG\tT\tN\t-" << "\n";
             for (size_t p = static_cast<size_t>(0); p < allCounts[r][b].size(); ++p) {
-                std::cout << chromosomes[r] << "\t" << startPositions[r] + p << "\t";
+                std::cout << chromosomes[r] << "\t" << static_cast<size_t>(startPositions[r]) + p << "\t";
                 for (size_t c = static_cast<size_t>(0); c < allCounts[r][b][p].size(); ++c) {
                     std::cout << allCounts[r][b][p][c] << "\t";
                 }
@@ -154,8 +150,8 @@ void printAllCounts(
 std::vector<std::vector<int>> extractCountsFromBam(
     const std::string inputBamFile,
     const std::string chromosome,
-    const int startPos,
-    const int endPos,
+    const hts_pos_t startPos,
+    const hts_pos_t endPos,
     const int minMapQuality,
     const int maxMapQuality,
     const int minBaseQuality,
@@ -211,18 +207,18 @@ std::vector<std::vector<int>> extractCountsFromBam(
         while (sam_itr_next(bam, iter, alignment) >= 0) {
             // Get details of the alignment
             const char *qname = bam_get_qname(alignment); // Get query name
-            int pos = alignment->core.pos; // Position of alignment
-            int seqLen = alignment->core.l_qseq; // Length of the read sequence
-            int mapQuality = alignment->core.qual; // Mapping quality of the alignment
+            hts_pos_t pos = alignment->core.pos; // Position of alignment
+            int32_t seqLen = alignment->core.l_qseq; // Length of the read sequence
+            uint8_t mapQuality = alignment->core.qual; // Mapping quality of the alignment
             // uint16_t flag = alignment->core.flag; // Bitwise flag
-            int n_cigar = alignment->core.n_cigar; // Number of CIGAR operations
+            uint32_t n_cigar = alignment->core.n_cigar; // Number of CIGAR operations
             // int tid = alignment->core.tid; // ID of the reference sequence
             // int mtid = alignment->core.mtid; // ID of the mate reference sequence
             // int mpos = alignment->core.mpos; // Position of the mate
             // int isize = alignment->core.isize; // Insert size
 
             // Filter by mapping quality
-            if (mapQuality < minMapQuality || mapQuality > maxMapQuality) {
+            if (static_cast<int>(mapQuality) < minMapQuality || static_cast<int>(mapQuality) > maxMapQuality) {
                 continue;
             }
 
@@ -255,8 +251,8 @@ std::vector<std::vector<int>> extractCountsFromBam(
              * --------------------------------
              */
 
-            int refPos = pos + 1;
-            int seqPos = 0;
+            hts_pos_t refPos = pos + 1;
+            hts_pos_t seqPos = 0;
 
             if (debug == 1) {
                 // Print the details of the alignment
@@ -436,13 +432,8 @@ std::vector<std::vector<int>> extractCountsFromBam(
         throw;
     }
 
-    if (debug == 1) {
-        //printIndCounts(counts);
-    }
-
     // Apply minCoverage and maxCoverage filter
-    /*
-    for (size_t i = 0; i < counts.size(); ++i) {
+    for (size_t i = static_cast<size_t>(0); i < counts.size(); ++i) {
         int baseCoverage = counts[i][0] + counts[i][1] + counts[i][2] + counts[i][3] + counts[i][4];
         if (baseCoverage < minCoverage || baseCoverage > maxCoverage) {
             counts[i][0] = 0; // Set A count to 0
@@ -452,7 +443,6 @@ std::vector<std::vector<int>> extractCountsFromBam(
             counts[i][4] = 0; // Set N count to 0
         }
     }
-     */
 
     return counts;
 }
@@ -462,8 +452,8 @@ std::tuple<std::string, int, int> parseRegion(const std::string& regionStr) {
     size_t dashPos = regionStr.find('-');
     size_t spacePos = regionStr.find(' ');
     std::string chromosome = "";
-    int startPos = 0;
-    int endPos = 0;
+    hts_pos_t startPos = 0;
+    hts_pos_t endPos = 0;
     if (colonPos != std::string::npos && dashPos != std::string::npos) {
         // Format is chr:start-end
         chromosome = regionStr.substr(static_cast<size_t>(0), colonPos);
