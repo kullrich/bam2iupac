@@ -31,8 +31,8 @@
 #include "sam.h"
 
 #define VERSION "0.0.1"
-#define EXENAME "bam2iupac_"
-#define GITHUB_URL "https://github.com/kullrich/bam2iupac_"
+#define EXENAME "bam2iupac"
+#define GITHUB_URL "https://github.com/kullrich/bam2iupac"
 
 #undef BAM_CIGAR_STR
 #define BAM_CIGAR_STR   "MIDNSHP=XB"
