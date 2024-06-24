@@ -32,8 +32,6 @@
 
 #undef BAM_CIGAR_STR
 #define BAM_CIGAR_STR "MIDNSHP=XB"
-#undef bam_cigar_opchr
-#define bam_cigar_opchr(c) (static_cast<char>(BAM_CIGAR_STR "??????" [bam_cigar_op(c)]))
 
 char intToIupac[15] = {
     'A', // Adenine
