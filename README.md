@@ -7,7 +7,7 @@ git clone --recursive https://github.com/kullrich/bam2iupac
 cd bam2iupac/htslib
 make
 cd ..
-make HTSLIB_DIR=htslib
+make HTSLIB_DIR=$PWD/htslib
 ```
 
 ## run
@@ -40,8 +40,47 @@ URL
   https://github.com/kullrich/bam2iupac
 ```
 
-## example to extract IUPAC-fasta
+## example to extract IUPAC FASTA
+
+### hg19
+```
+./bam2iupac  \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/DNK02.bam --n DNK02 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00521.bam --n HGDP00521 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00542.bam --n HGDP00542 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00665.bam --n HGDP00665 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00778.bam --n HGDP00778 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00927.bam --n HGDP00927 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP01029.bam --n HGDP01029 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP01284.bam --n HGDP01284 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP01307.bam --n HGDP01307 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP0456.bam --n HGDP0456 \
+--b https://cdna.eva.mpg.de/denisova/alignments/T_hg19_1000g.bam --n T \
+--b https://cdna.eva.mpg.de/denisova/Den25/BAM/Denisova25.hg19.ontarget.uniq.L35MQ25.indel_realigned.MDfixed.bam --n Denisova25 \
+--r 1:10000001-10001000
 ```
 
+### direct distance calculation with [literal-dists](https://github.com/kullrich/literal-dists)
+```
+git clone https://github.com/kullrich/literal-dists
+cd literal-dists
+make
+```
+
+```
+./bam2iupac  \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/DNK02.bam --n DNK02 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00521.bam --n HGDP00521 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00542.bam --n HGDP00542 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00665.bam --n HGDP00665 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00778.bam --n HGDP00778 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00927.bam --n HGDP00927 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP01029.bam --n HGDP01029 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP01284.bam --n HGDP01284 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP01307.bam --n HGDP01307 \
+--b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP0456.bam --n HGDP0456 \
+--b https://cdna.eva.mpg.de/denisova/alignments/T_hg19_1000g.bam --n T \
+--b https://cdna.eva.mpg.de/denisova/Den25/BAM/Denisova25.hg19.ontarget.uniq.L35MQ25.indel_realigned.MDfixed.bam --n Denisova25 \
+--r 1:10000001-10001000 | ./literal-dist > distances.tsv
 ```
 
