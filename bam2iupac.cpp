@@ -24,6 +24,8 @@
 #include <sstream>
 #include <vector>
 #include <getopt.h>
+#include <cmath>
+#include <tuple>
 #include "sam.h"
 
 #define VERSION "0.0.1"
