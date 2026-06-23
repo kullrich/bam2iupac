@@ -3,6 +3,8 @@ IUPAC FASTA extraction from BAM files to stdout
 
 ## install
 ```
+#Ubuntu: sudo apt-get install libbz2-dev
+#RedHat: sudo dnf install bzip2-devel
 git clone --recursive https://github.com/kullrich/bam2iupac
 cd bam2iupac/htslib
 make
