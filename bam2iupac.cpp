@@ -561,43 +561,36 @@ int main(int argc, char** argv) {
             case 3:
                 if (strcmp(long_options[option_index].name, "minMQ") == 0) {
                     minMapQuality = std::stoi(optarg);
-                    std::cout << "minMapQuality: " << minMapQuality << std::endl;
                 }
                 break;
             case 4:
                 if (strcmp(long_options[option_index].name, "minBQ") == 0) {
                     minBaseQuality = std::stoi(optarg);
-                    std::cout << "minBaseQuality: " << minBaseQuality << std::endl;
                 }
                 break;
             case 5:
                 if (strcmp(long_options[option_index].name, "minC") == 0) {
                     minCoverage = std::stoi(optarg);
-                    std::cout << "minCoverage: " << minCoverage << std::endl;
                 }
                 break;
             case 6:
                 if (strcmp(long_options[option_index].name, "maxC") == 0) {
                     maxCoverage = std::stoi(optarg);
-                    std::cout << "maxCoverage: " << maxCoverage << std::endl;
                 }
                 break;
             case 7:
                 if (strcmp(long_options[option_index].name, "iupacRatio") == 0) {
                     iupacRatio = std::stod(optarg);
-                    std::cout << "iupacRatio: " << iupacRatio << std::endl;
                 }
                 break;
             case 8:
                 if (strcmp(long_options[option_index].name, "incMQ") == 0) {
                     maxMapQuality = 255;
-                    std::cout << "maxMapQuality: " << maxMapQuality << std::endl;
                 }
                 break;
             case 9:
                 if (strcmp(long_options[option_index].name, "incBQ") == 0) {
                     maxBaseQuality = 255;
-                    std::cout << "maxBaseQuality: " << maxBaseQuality << std::endl;
                 }
                 break;
             case 10:
