@@ -2,3 +2,4 @@
 *.o
 Makefile.bak
 .idea/
+bam2iupac
