@@ -26,9 +26,10 @@
 #include <getopt.h>
 #include <cmath>
 #include <tuple>
+#include <fstream>
 #include "sam.h"
 
-#define VERSION "0.0.1"
+#define VERSION "0.0.2"
 #define EXENAME "bam2iupac"
 #define GITHUB_URL "https://github.com/kullrich/bam2iupac"
 
@@ -479,9 +480,12 @@ void show_help(const char* program_name, int retcode) {
             "  IUPAC FASTA extraction from BAM files to stdout\n"
             "USAGE\n"
             "  %s [options] --b 1.bam --n ind1 --b 2.bam --n ind2 [...]\n"
+            "  OR\n"
+            "  %s [options] --list samples.txt\n"
             "OPTIONS\n"
             "  --b\t\tBAM files\n"
             "  --n\t\tSequence IDs\n"
+            "  --list\tFile containing BAM paths and Sample IDs (one per line: <BAM> <SAMPLE>)\n"
             "  --r\t\tRegion ('chr:start-end' or 'chr start end')\n"
             "  --minMQ\tMinimum mapping quality (default: 0)\n"
             "  --minBQ\tMinimum base quality (default: 0)\n"
@@ -499,7 +503,7 @@ void show_help(const char* program_name, int retcode) {
             "  %s\n"
             "URL\n"
             "  %s\n"};
-    (void)fprintf(out, str, program_name, EXENAME, VERSION, GITHUB_URL);
+    (void)fprintf(out, str, program_name, program_name, EXENAME, VERSION, GITHUB_URL);
     exit(retcode);
 }
 
@@ -513,6 +517,7 @@ int main(int argc, char** argv) {
     std::vector<std::string> bamFiles;
     std::vector<std::string> sequenceIds;
     std::vector<std::string> regions;
+    std::string listFile = "";
     int minMapQuality = 0;
     int maxMapQuality = 254;
     int minBaseQuality = 0;
@@ -536,6 +541,7 @@ int main(int argc, char** argv) {
             {"help", no_argument, NULL, 10 },
             {"version", no_argument, NULL, 11 },
             {"debug", no_argument, NULL, 12 },
+            {"list", required_argument, NULL, 13 },
             {NULL, 0, NULL, 0 }
     };
 
@@ -608,6 +614,11 @@ int main(int argc, char** argv) {
                     debug = 1;
                 }
                 break;
+            case 13:
+                if (strcmp(long_options[option_index].name, "list") == 0) {
+                    listFile = optarg;
+                }
+                break;
             case '?':
                 std::cerr << "Invalid option or missing argument" << std::endl;
                 break;
@@ -618,6 +629,28 @@ int main(int argc, char** argv) {
     }
 
     // Check if required options are provided
+    if (!listFile.empty()) {
+        std::ifstream infile(listFile);
+        if (!infile.is_open()) {
+            std::cerr << "Error: Could not open list file " << listFile << std::endl;
+            return 1;
+        }
+        std::string line;
+        while (std::getline(infile, line)) {
+            if (line.empty()) {
+                continue;
+            }
+            std::stringstream ss(line);
+            std::string bam, sample;
+            if (ss >> bam >> sample) {
+                bamFiles.push_back(bam);
+                sequenceIds.push_back(sample);
+            } else {
+                std::cerr << "Warning: Skipping malformed line in list file: " << line << std::endl;
+            }
+        }
+        infile.close();
+    }
     if (bamFiles.empty()) {
         std::cerr << "Error: At least one BAM file must be specified with the --b option (see --help)." << std::endl;
         return 1;
