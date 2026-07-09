@@ -29,12 +29,103 @@
 #include <fstream>
 #include "sam.h"
 
-#define VERSION "0.0.2"
+#define VERSION "0.0.3"
 #define EXENAME "bam2iupac"
 #define GITHUB_URL "https://github.com/kullrich/bam2iupac"
 
 #undef BAM_CIGAR_STR
 #define BAM_CIGAR_STR "MIDNSHP=XB"
+
+struct BamExtractionResult {
+    std::vector<std::vector<int>> counts;
+    std::string chromosome;
+    hts_pos_t startPos;
+    hts_pos_t endPos;
+};
+
+std::tuple<std::string, hts_pos_t, hts_pos_t> resolveRegion(
+    bam_hdr_t* header,
+    const std::string& chromosome,
+    hts_pos_t startPos,
+    hts_pos_t endPos) {
+
+    int tid = -1;
+
+    for (int i = 0; i < header->n_targets; ++i) {
+        if (chromosome == header->target_name[i]) {
+            tid = i;
+            break;
+        }
+    }
+
+    if (tid < 0) {
+        throw std::runtime_error(
+            "Chromosome not found in BAM header: " + chromosome);
+    }
+
+    hts_pos_t chromosomeLength = header->target_len[tid];
+
+    // Special case: entire chromosome requested
+    if (startPos == 0 && endPos == 0) {
+        startPos = 1;
+        endPos = chromosomeLength;
+    } else {
+
+        // Reject invalid start
+        if (startPos < 1) {
+            throw std::runtime_error(
+                "Start position must be >= 1.");
+        }
+
+        // Clamp end to chromosome length
+        if (endPos > chromosomeLength) {
+            endPos = chromosomeLength;
+        }
+
+        // After clamping, the region may have become invalid
+        if (startPos > endPos) {
+            throw std::runtime_error(
+                "Requested region starts beyond the end of chromosome.");
+        }
+    }
+
+    return std::make_tuple(chromosome, startPos, endPos);
+}
+
+std::tuple<std::string, hts_pos_t, hts_pos_t> parseRegion(
+    const std::string& regionStr) {
+
+    size_t colonPos = regionStr.find(':');
+    size_t dashPos = regionStr.find('-');
+    size_t spacePos = regionStr.find(' ');
+    std::string chromosome = "";
+    hts_pos_t startPos = 0;
+    hts_pos_t endPos = 0;
+
+    if (colonPos != std::string::npos && dashPos != std::string::npos) {
+        // Format is chr:start-end
+        chromosome = regionStr.substr(static_cast<size_t>(0), colonPos);
+        startPos = std::stoi(regionStr.substr(colonPos + static_cast<size_t>(1), dashPos - colonPos - static_cast<size_t>(1)));
+        endPos = std::stoi(regionStr.substr(dashPos + static_cast<size_t>(1)));
+    } else if (spacePos != std::string::npos) {
+        // Format is chr start end
+        std::istringstream iss(regionStr);
+        iss >> chromosome >> startPos >> endPos;
+    } else {
+        throw std::runtime_error("Error: Invalid region format. Please use one of the following formats: 'chr:start-end' or 'chr start end'.");
+    }
+
+    if (!(startPos == 0 && endPos == 0)) {
+        if (startPos < 1) {
+            throw std::runtime_error("Error: Start position must be >= 1 (BAM coordinates are 1-based).");
+        }
+        if (startPos > endPos) {
+            throw std::runtime_error("Error: Either 'startPos > endPos' or region not parsed correctly.");
+        }
+    }
+
+    return std::make_tuple(chromosome, startPos, endPos);
+}
 
 //char intToIupac[15] = {
 //    'A', // Adenine
@@ -103,7 +194,9 @@ static const char maskToIupac[16] = {
 //    return intToIupac[whichIUPAC];
 //}
 
-char getIupac(const std::vector<int>& counts, double iRatio) {
+char getIupac(
+    const std::vector<int>& counts,
+    double iRatio) {
 
     int depth = 0;
 
@@ -164,10 +257,13 @@ std::string generateFasta(
         fastaStream << sequence << std::endl;
         sequence.clear();
     }
+
     return fastaStream.str();
 }
 
-void printIndCounts(const std::vector<std::vector<int>>& Counts) {
+void printIndCounts(
+    const std::vector<std::vector<int>>& Counts) {
+
     for (size_t p = static_cast<size_t>(0); p < Counts.size(); ++p) {
         std::cout << "    Position " << p << ": ";
         for (size_t c = static_cast<size_t>(0); c < Counts[p].size(); ++c) {
@@ -183,6 +279,7 @@ void printAllCounts(
     const std::vector<int> startPositions,
     const std::vector<int> endPositions,
     const std::vector<std::vector<std::vector<std::vector<int>>>>& allCounts) {
+
     for (size_t r = static_cast<size_t>(0); r < allCounts.size(); ++r) {
         std::cout << "Region:" << "\n";
         std::cout << "\t" << chromosomes[r] << ":" << startPositions[r] << "-" << endPositions[r] << "\n";
@@ -201,11 +298,11 @@ void printAllCounts(
     }
 }
 
-std::vector<std::vector<int>> extractCountsFromBam(
+BamExtractionResult extractCountsFromBam(
     const std::string inputBamFile,
-    const std::string chromosome,
-    const hts_pos_t startPos,
-    const hts_pos_t endPos,
+    std::string chromosome,
+    hts_pos_t startPos,
+    hts_pos_t endPos,
     const int minMapQuality,
     const int maxMapQuality,
     const int minBaseQuality,
@@ -222,10 +319,8 @@ std::vector<std::vector<int>> extractCountsFromBam(
 
     // Initialize counts vector
     std::vector<std::vector<int>> counts; // Stores counts for each position
-    size_t numCounts = static_cast<size_t>(endPos) - static_cast<size_t>(startPos) + static_cast<size_t>(1); // Get length from start to end
-    // Initialize counts from start to end
-    // A, C, G, T, N, -
-    counts.resize(numCounts, std::vector<int>(static_cast<size_t>(6), 0));
+    // Initialize resolved region
+    std::tuple<std::string, hts_pos_t, hts_pos_t> regionResolved;
 
     // Process BAM file
     try {
@@ -240,6 +335,22 @@ std::vector<std::vector<int>> extractCountsFromBam(
         if (header == nullptr) {
             throw std::runtime_error("Failed to read BAM header.");
         }
+        regionResolved = resolveRegion(header, chromosome, startPos, endPos);
+        // overwrite coordinates with resolved values
+        chromosome = std::get<0>(regionResolved);
+        startPos = std::get<1>(regionResolved);
+        endPos = std::get<2>(regionResolved);
+
+        if (debug == 1) {
+            std::cout << "Resolved region: "
+                      << chromosome << ":"
+                      << startPos << "-"
+                      << endPos << std::endl;
+        }
+        size_t numCounts = static_cast<size_t>(endPos) - static_cast<size_t>(startPos) + static_cast<size_t>(1); // Get length from start to end
+        // Initialize counts from start to end
+        // A, C, G, T, N, -
+        counts.resize(numCounts, std::vector<int>(static_cast<size_t>(6), 0));
 
         // Initialize BAM index
         idx = sam_index_load(bam, inputBamFile.c_str());
@@ -466,7 +577,7 @@ std::vector<std::vector<int>> extractCountsFromBam(
         bam_hdr_destroy(header);
         sam_close(bam);
     } catch (const std::runtime_error& e) {
-        std::cerr << e.what() << std::endl;
+        //std::cerr << e.what() << std::endl;
 
         // Clean up resources in case of error
         if (iter != nullptr) {
@@ -498,38 +609,18 @@ std::vector<std::vector<int>> extractCountsFromBam(
         }
     }
 
-    return counts;
+    return {
+        counts,
+        chromosome,
+        startPos,
+        endPos
+    };
 }
 
-std::tuple<std::string, int, int> parseRegion(const std::string& regionStr) {
-    size_t colonPos = regionStr.find(':');
-    size_t dashPos = regionStr.find('-');
-    size_t spacePos = regionStr.find(' ');
-    std::string chromosome = "";
-    hts_pos_t startPos = 0;
-    hts_pos_t endPos = 0;
-    if (colonPos != std::string::npos && dashPos != std::string::npos) {
-        // Format is chr:start-end
-        chromosome = regionStr.substr(static_cast<size_t>(0), colonPos);
-        startPos = std::stoi(regionStr.substr(colonPos + static_cast<size_t>(1), dashPos - colonPos - static_cast<size_t>(1)));
-        endPos = std::stoi(regionStr.substr(dashPos + static_cast<size_t>(1)));
-    } else if (spacePos != std::string::npos) {
-        // Format is chr start end
-        std::istringstream iss(regionStr);
-        iss >> chromosome >> startPos >> endPos;
-    } else {
-        throw std::runtime_error("Error: Invalid region format. Please use one of the following formats: 'chr:start-end' or 'chr start end'.");
-    }
-    if (startPos < 1) {
-        throw std::runtime_error("Error: Start position must be >= 1 (BAM coordinates are 1-based).");
-    }
-    if (startPos > endPos) {
-        throw std::runtime_error("Error: Either 'startPos > endPos' or region not parsed correctly.");
-    }
-    return std::make_tuple(chromosome, startPos, endPos);
-}
+void show_help(
+    const char* program_name,
+    int retcode) {
 
-void show_help(const char* program_name, int retcode) {
     FILE* out = (retcode == EXIT_SUCCESS ? stdout : stderr);
     static const char str[] = {
             "SYNOPSIS\n"
@@ -537,12 +628,13 @@ void show_help(const char* program_name, int retcode) {
             "USAGE\n"
             "  %s [options] --b 1.bam --n ind1 --b 2.bam --n ind2 [...]\n"
             "  OR\n"
-            "  %s [options] --list samples.txt\n"
+            "  %s [options] --bamList samples.txt\n"
             "OPTIONS\n"
             "  --b\t\tBAM files\n"
             "  --n\t\tSequence IDs\n"
-            "  --list\tFile containing BAM paths and Sample IDs (one per line: <BAM> <SAMPLE>)\n"
+            "  --bamList\tFile containing BAM paths and Sample IDs (one per line: <BAM> <SAMPLE>)\n"
             "  --r\t\tRegion ('chr:start-end' or 'chr start end') coordinates are 1-based\n"
+            "  --regionList\tFile containing regions (one per line: 'chr:start-end' or 'chr start end')\n"
             "  --minMQ\tMinimum mapping quality (default: 0)\n"
             "  --minBQ\tMinimum base quality (default: 0)\n"
             "  --minC\tMinimum coverage (default: 0)\n"
@@ -553,6 +645,12 @@ void show_help(const char* program_name, int retcode) {
             "  --help\tShow this help\n"
             "  --version\tPrint version and exit\n"
             "  --debug\tDebug\n"
+            "\n"
+            "NOTE: Multiple BAM files (--b/--bamList) and regions (--r/--regionList)\n"
+            "      are processed in the order provided.\n"
+            "      Multiple regions are concatenated into a single output sequence,\n"
+            "      enabling direct extraction of combined intervals such as exons from a GTF annotation.\n"
+            "\n"
             "EXENAME\n"
             "  %s\n"
             "VERSION\n"
@@ -563,17 +661,23 @@ void show_help(const char* program_name, int retcode) {
     exit(retcode);
 }
 
-void show_version() {
+void show_version(
+    ) {
+    
     std::cout << EXENAME << std::endl;
     std::cout << "Version: " << VERSION << std::endl;
     exit(EXIT_SUCCESS);
 }
 
-int main(int argc, char** argv) {
+int main(
+    int argc,
+    char** argv) {
+
     std::vector<std::string> bamFiles;
     std::vector<std::string> sequenceIds;
     std::vector<std::string> regions;
-    std::string listFile = "";
+    std::string bamList = "";
+    std::string regionList = "";
     int minMapQuality = 0;
     int maxMapQuality = 254;
     int minBaseQuality = 0;
@@ -597,7 +701,8 @@ int main(int argc, char** argv) {
             {"help", no_argument, NULL, 10 },
             {"version", no_argument, NULL, 11 },
             {"debug", no_argument, NULL, 12 },
-            {"list", required_argument, NULL, 13 },
+            {"bamList", required_argument, NULL, 13 },
+            {"regionList", required_argument, NULL, 14 },
             {NULL, 0, NULL, 0 }
     };
 
@@ -671,8 +776,13 @@ int main(int argc, char** argv) {
                 }
                 break;
             case 13:
-                if (strcmp(long_options[option_index].name, "list") == 0) {
-                    listFile = optarg;
+                if (strcmp(long_options[option_index].name, "bamList") == 0) {
+                    bamList = optarg;
+                }
+                break;
+            case 14:
+                if (strcmp(long_options[option_index].name, "regionList") == 0) {
+                    regionList = optarg;
                 }
                 break;
             case '?':
@@ -685,15 +795,18 @@ int main(int argc, char** argv) {
     }
 
     // Check if required options are provided
-    if (!listFile.empty()) {
-        std::ifstream infile(listFile);
+    if (!bamList.empty()) {
+        std::ifstream infile(bamList);
         if (!infile.is_open()) {
-            std::cerr << "Error: Could not open list file " << listFile << std::endl;
+            std::cerr << "Error: Could not open bam list file " << bamList << std::endl;
             return 1;
         }
         std::string line;
         while (std::getline(infile, line)) {
             if (line.empty()) {
+                continue;
+            }
+            if (line[0] == '#') {
                 continue;
             }
             std::stringstream ss(line);
@@ -702,8 +815,26 @@ int main(int argc, char** argv) {
                 bamFiles.push_back(bam);
                 sequenceIds.push_back(sample);
             } else {
-                std::cerr << "Warning: Skipping malformed line in list file: " << line << std::endl;
+                std::cerr << "Warning: Skipping malformed line in bam list file: " << line << std::endl;
             }
+        }
+        infile.close();
+    }
+    if (!regionList.empty()) {
+        std::ifstream infile(regionList);
+        if (!infile.is_open()) {
+            std::cerr << "Error: Could not open region list file " << regionList << std::endl;
+            return 1;
+        }
+        std::string line;
+        while (std::getline(infile, line)) {
+            if (line.empty()) {
+                continue;
+            }
+            if (line[0] == '#') {
+                continue;
+            }
+            regions.push_back(line);
         }
         infile.close();
     }
@@ -768,10 +899,35 @@ int main(int argc, char** argv) {
     allIupacStrings.resize(regions.size());
 
     for (size_t r = static_cast<size_t>(0); r < regions.size(); ++r) {
+        bool regionResolved = false;
         for (const auto &bamFile : bamFiles) {
-            std::vector<std::vector<int>> counts = extractCountsFromBam(
-                bamFile, chromosomes[r], startPositions[r], endPositions[r],
-                minMapQuality, maxMapQuality, minBaseQuality, maxBaseQuality, minCoverage, maxCoverage, debug);
+            BamExtractionResult bamresult;
+            try {
+                bamresult = extractCountsFromBam(
+                    bamFile,
+                    chromosomes[r],
+                    startPositions[r],
+                    endPositions[r],
+                    minMapQuality,
+                    maxMapQuality,
+                    minBaseQuality,
+                    maxBaseQuality,
+                    minCoverage,
+                    maxCoverage,
+                    debug);
+            } catch (const std::runtime_error& e) {
+                std::cerr << e.what() << std::endl;
+                // Exit
+                return EXIT_FAILURE;
+            }
+            if (!regionResolved) {
+                startPositions[r] = bamresult.startPos;
+                endPositions[r] = bamresult.endPos;
+                regionResolved = true;
+            }
+
+            std::vector<std::vector<int>> counts = bamresult.counts;
+
             // Vector to store merged IUPAC characters for current BAM file
             std::vector<std::string> iupacStrings;
             for (const auto &count: counts) {

@@ -20,24 +20,34 @@ SYNOPSIS
   IUPAC FASTA extraction from BAM files to stdout
 USAGE
   ./bam2iupac [options] --b 1.bam --n ind1 --b 2.bam --n ind2 [...]
+  OR
+  ./bam2iupac [options] --bamList samples.txt
 OPTIONS
-  --b		BAM files
-  --n		Sequence IDs
-  --r		Region ('chr:start-end' or 'chr start end')
-  --minMQ	Minimum mapping quality (default: 0)
-  --minBQ	Minimum base quality (default: 0)
-  --minC	Minimum coverage (default: 0)
-  --maxC	Maximum coverage (default: 9999)
-  --iupacRatio	IUPAC ratio (default: 0.25)
-  --incMQ	Include missing mapping quality value 255 (default: False)
-  --incBQ	Include missing base quality value 255 (default: False)
-  --help	Show this help
-  --version	Print version and exit
-  --debug	Debug
+  --b   BAM files
+  --n   Sequence IDs
+  --bamList File containing BAM paths and Sample IDs (one per line: <BAM> <SAMPLE>)
+  --r   Region ('chr:start-end' or 'chr start end') coordinates are 1-based
+  --regionList  File containing regions (one per line: 'chr:start-end' or 'chr start end')
+  --minMQ Minimum mapping quality (default: 0)
+  --minBQ Minimum base quality (default: 0)
+  --minC  Minimum coverage (default: 0)
+  --maxC  Maximum coverage (default: 9999)
+  --iupacRatio  IUPAC ratio (default: 0.25)
+  --incMQ Include missing mapping quality value 255 (default: False)
+  --incBQ Include missing base quality value 255 (default: False)
+  --help  Show this help
+  --version Print version and exit
+  --debug Debug
+
+NOTE: Multiple BAM files (--b/--bamList) and regions (--r/--regionList)
+      are processed in the order provided.
+      Multiple regions are concatenated into a single output sequence,
+      enabling direct extraction of combined intervals such as exons from a GTF annotation.
+
 EXENAME
   bam2iupac
 VERSION
-  0.0.1
+  0.0.3
 URL
   https://github.com/kullrich/bam2iupac
 ```
@@ -46,7 +56,7 @@ URL
 
 ### hg19
 ```
-./bam2iupac  \
+./bam2iupac \
 --b https://cdna.eva.mpg.de/denisova/BAM/human/DNK02.bam --n DNK02 \
 --b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00521.bam --n HGDP00521 \
 --b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00542.bam --n HGDP00542 \
@@ -62,6 +72,14 @@ URL
 --r 1:10000001-10001000
 ```
 
+### concatenate regions
+```
+./bam2iupac \
+--b https://cdna.eva.mpg.de/denisova/alignments/T_hg19_1000g.bam --n T \
+--r 1:10000001-10001000 \
+--r 1:10001001-10002000
+```
+
 ### direct distance calculation with [literal-dists](https://github.com/kullrich/literal-dists)
 ```
 git clone https://github.com/kullrich/literal-dists
@@ -70,7 +88,7 @@ make
 ```
 
 ```
-./bam2iupac  \
+./bam2iupac \
 --b https://cdna.eva.mpg.de/denisova/BAM/human/DNK02.bam --n DNK02 \
 --b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00521.bam --n HGDP00521 \
 --b https://cdna.eva.mpg.de/denisova/BAM/human/HGDP00542.bam --n HGDP00542 \
