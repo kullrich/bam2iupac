@@ -23,26 +23,26 @@ USAGE
   OR
   ./bam2iupac [options] --bamList samples.txt
 OPTIONS
-  --b   BAM files
-  --n   Sequence IDs
-  --bamList File containing BAM paths and Sample IDs (one per line: <BAM> <SAMPLE>)
-  --r   Region ('chr:start-end' or 'chr start end') coordinates are 1-based
-  --regionList  File containing regions (one per line: 'chr:start-end' or 'chr start end')
-  --minMQ Minimum mapping quality (default: 0)
-  --minBQ Minimum base quality (default: 0)
-  --minC  Minimum coverage (default: 0)
-  --maxC  Maximum coverage (default: 9999)
-  --iupacRatio  IUPAC ratio (default: 0.25)
-  --incMQ Include missing mapping quality value 255 (default: False)
-  --incBQ Include missing base quality value 255 (default: False)
-  --help  Show this help
-  --version Print version and exit
-  --debug Debug
+  --b          BAM files
+  --n          Sequence IDs
+  --bamList    File containing BAM paths and Sample IDs (one per line: <BAM> <SAMPLE>)
+  --r          Region ('chr:start-end' or 'chr start end') coordinates are 1-based
+  --regionList File containing regions (one per line: 'chr:start-end' or 'chr start end')
+  --minMQ      Minimum mapping quality (default: 0)
+  --minBQ      Minimum base quality (default: 0)
+  --minC       Minimum coverage (default: 0)
+  --maxC       Maximum coverage (default: 9999)
+  --iupacRatio IUPAC ratio (default: 0.25)
+  --incMQ      Include missing mapping quality value 255 (default: False)
+  --incBQ      Include missing base quality value 255 (default: False)
+  --help       Show this help
+  --version    Print version and exit
+  --debug      Debug
 
-NOTE: Multiple BAM files (--b/--bamList) and regions (--r/--regionList)
-      are processed in the order provided.
-      Multiple regions are concatenated into a single output sequence,
-      enabling direct extraction of combined intervals such as exons from a GTF annotation.
+         NOTE: Multiple BAM files (--b/--bamList) and regions (--r/--regionList)
+               are processed in the order provided.
+               Multiple regions are concatenated into a single output sequence,
+               enabling direct extraction of combined intervals (exons) from a GTF annotation.
 
 EXENAME
   bam2iupac
