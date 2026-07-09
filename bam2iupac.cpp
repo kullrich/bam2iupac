@@ -36,52 +36,105 @@
 #undef BAM_CIGAR_STR
 #define BAM_CIGAR_STR "MIDNSHP=XB"
 
-char intToIupac[15] = {
-    'A', // Adenine
-    'C', // Cytosine
-    'G', // Guanine
-    'T', // Thymine
-    'R', // puRine A+G
-    'Y', // pYrimidine C+T
-    'S', // Strong interaction (3 H bonds) G+C
-    'W', // Weak interaction (2 H bonds) A+T
-    'K', // Keto G+T
-    'M', // aMino A+C
-    'B', // not-A, B follows A
-    'D', // not-C, D follows C
-    'H', // not-G, H follows G in the alphabet
-    'V', // not-T (not-U), V follows U
-    'N'}; // aNy
+//char intToIupac[15] = {
+//    'A', // Adenine
+//    'C', // Cytosine
+//    'G', // Guanine
+//    'T', // Thymine
+//    'R', // puRine A+G
+//    'Y', // pYrimidine C+T
+//    'S', // Strong interaction (3 H bonds) G+C
+//    'W', // Weak interaction (2 H bonds) A+T
+//    'K', // Keto G+T
+//    'M', // aMino A+C
+//    'B', // not-A, B follows A
+//    'D', // not-C, D follows C
+//    'H', // not-G, H follows G in the alphabet
+//    'V', // not-T (not-U), V follows U
+//    'N'}; // aNy
+
+static const char maskToIupac[16] = {
+    'N', // 0000 (invalid/no base)
+    'A', // 0001
+    'C', // 0010
+    'M', // 0011 A+C
+    'G', // 0100
+    'R', // 0101 A+G
+    'S', // 0110 C+G
+    'V', // 0111 A+C+G
+    'T', // 1000
+    'W', // 1001 A+T
+    'Y', // 1010 C+T
+    'H', // 1011 A+C+T
+    'K', // 1100 G+T
+    'D', // 1101 A+G+T
+    'B', // 1110 C+G+T
+    'N'  // 1111 any base
+};
+
+//char getIupac(const std::vector<int>& counts, double iRatio) {
+//
+//    int depth = 0;
+//    int whichIUPAC = 0;
+//    double bIUPACscore = 0.0;
+//
+//    for (int b = 0; b < 4; b++) {
+//        depth += counts[static_cast<unsigned int>(b)];
+//    }
+//    if (depth <= 0) {
+//        whichIUPAC = 14;
+//    } else {
+//        for (int b = 0; b < 4; b++) {
+//            if (static_cast<double>(counts[static_cast<unsigned int>(b)]) / static_cast<double>(depth) > iRatio) {
+//                bIUPACscore += pow(b + 1, 2);
+//            }
+//        }
+//        //N;A;C;G;T;A+G;C+T;G+C;A+T;G+T;A+C;C+G+T;A+G+T;A+C+T;A+C+G;A+C+G+T
+//        const double scoreThresholds[] = {0.0, 1.0, 4.0, 9.0, 16.0, 10.0, 20.0, 13.0, 17.0, 25.0, 5.0, 29.0, 26.0, 21.0, 14.0, 30.0};
+//        const int iupacValues[] = {14, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+//
+//        for (size_t i = static_cast<size_t>(0); i < sizeof(scoreThresholds) / sizeof(scoreThresholds[0]); i++) {
+//            if (bIUPACscore == scoreThresholds[i]) {
+//                whichIUPAC = iupacValues[i];
+//                break;
+//            }
+//        }
+//    }
+//    return intToIupac[whichIUPAC];
+//}
 
 char getIupac(const std::vector<int>& counts, double iRatio) {
 
     int depth = 0;
-    int whichIUPAC = 0;
-    double bIUPACscore = 0.0;
+
+    // counts:
+    // 0=A
+    // 1=C
+    // 2=G
+    // 3=T
+    // 4=N
+    // 5=deletion
 
     for (int b = 0; b < 4; b++) {
-        depth += counts[static_cast<unsigned int>(b)];
+        depth += counts[static_cast<size_t>(b)];
     }
-    if (depth <= 0) {
-        whichIUPAC = 14;
-    } else {
-        for (int b = 0; b < 4; b++) {
-            if (static_cast<double>(counts[static_cast<unsigned int>(b)]) / static_cast<double>(depth) > iRatio) {
-                bIUPACscore += pow(b + 1, 2);
-            }
-        }
-        //N;A;C;G;T;A+G;C+T;G+C;A+T;G+T;A+C;C+G+T;A+G+T;A+C+T;A+C+G;A+C+G+T
-        const double scoreThresholds[] = {0.0, 1.0, 4.0, 9.0, 16.0, 10.0, 20.0, 13.0, 17.0, 25.0, 5.0, 29.0, 26.0, 21.0, 14.0, 30.0};
-        const int iupacValues[] = {14, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
-        for (size_t i = static_cast<size_t>(0); i < sizeof(scoreThresholds) / sizeof(scoreThresholds[0]); i++) {
-            if (bIUPACscore == scoreThresholds[i]) {
-                whichIUPAC = iupacValues[i];
-                break;
-            }
-        }
+    if (depth <= 0) {
+        return 'N';
     }
-    return intToIupac[whichIUPAC];
+
+    uint8_t mask = 0;
+    double threshold = static_cast<double>(depth) * iRatio;
+    if (counts[0] > threshold)
+        mask |= 1;   // A
+    if (counts[1] > threshold)
+        mask |= 2;   // C
+    if (counts[2] > threshold)
+        mask |= 4;   // G
+    if (counts[3] > threshold)
+        mask |= 8;   // T
+
+    return maskToIupac[mask];
 }
 
 std::string generateFasta(
