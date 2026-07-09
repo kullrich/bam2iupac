@@ -520,6 +520,9 @@ std::tuple<std::string, int, int> parseRegion(const std::string& regionStr) {
     } else {
         throw std::runtime_error("Error: Invalid region format. Please use one of the following formats: 'chr:start-end' or 'chr start end'.");
     }
+    if (startPos < 1) {
+        throw std::runtime_error("Error: Start position must be >= 1 (BAM coordinates are 1-based).");
+    }
     if (startPos > endPos) {
         throw std::runtime_error("Error: Either 'startPos > endPos' or region not parsed correctly.");
     }
@@ -539,7 +542,7 @@ void show_help(const char* program_name, int retcode) {
             "  --b\t\tBAM files\n"
             "  --n\t\tSequence IDs\n"
             "  --list\tFile containing BAM paths and Sample IDs (one per line: <BAM> <SAMPLE>)\n"
-            "  --r\t\tRegion ('chr:start-end' or 'chr start end')\n"
+            "  --r\t\tRegion ('chr:start-end' or 'chr start end') coordinates are 1-based\n"
             "  --minMQ\tMinimum mapping quality (default: 0)\n"
             "  --minBQ\tMinimum base quality (default: 0)\n"
             "  --minC\tMinimum coverage (default: 0)\n"
