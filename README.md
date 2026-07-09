@@ -80,6 +80,14 @@ URL
 --r 1:10001001-10002000
 ```
 
+### set whole chromosome as region ('chr:0-0' or 'chr 0 0')
+```
+./bam2iupac \
+--b https://cdna.eva.mpg.de/denisova/alignments/T_hg19_1000g.bam --n T \
+--r 1:0-0
+```
+
+
 ### direct distance calculation with [literal-dists](https://github.com/kullrich/literal-dists)
 ```
 git clone https://github.com/kullrich/literal-dists
